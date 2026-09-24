@@ -10,12 +10,11 @@ use tauri::{
 use url::Url;
 
 use crate::{
-    config::{TELEMOST_URL, USER_AGENT},
-    macos,
-    navigation::NavigationPolicy,
-    settings::SettingsStore,
-    tray,
+    config::TELEMOST_URL, macos, navigation::NavigationPolicy, settings::SettingsStore, tray,
 };
+
+#[cfg(target_os = "macos")]
+use crate::config::USER_AGENT;
 
 pub const MAIN_WINDOW_LABEL: &str = "messenger";
 
@@ -101,11 +100,14 @@ pub fn ensure_main_window(app: &AppHandle) -> Result<WebviewWindow, String> {
     let load_app = app.clone();
     let first_document_load = AtomicBool::new(true);
 
-    let window = WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::External(blank_url))
-        .title("Yandex Telemost")
-        .inner_size(settings.window_bounds.width, settings.window_bounds.height)
-        .visible(false)
-        .user_agent(USER_AGENT)
+    let builder =
+        WebviewWindowBuilder::new(app, MAIN_WINDOW_LABEL, WebviewUrl::External(blank_url))
+            .title("Telesram")
+            .inner_size(settings.window_bounds.width, settings.window_bounds.height)
+            .visible(false);
+    #[cfg(target_os = "macos")]
+    let builder = builder.user_agent(USER_AGENT);
+    let window = builder
         .data_store_identifier(data_store_identifier)
         .devtools(true)
         .on_navigation(move |url| {

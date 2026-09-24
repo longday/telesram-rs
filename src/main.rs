@@ -42,6 +42,24 @@ fn run() -> Result<(), Box<dyn Error>> {
         .setup(|app| {
             let runtime_dir = runtime_dir();
             std::fs::create_dir_all(&runtime_dir)?;
+            // The single-instance plugin can fail open if its IPC socket fails.
+            let instance_lock = std::fs::File::options()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(runtime_dir.join("instance.lock"))?;
+            match instance_lock.try_lock() {
+                Ok(()) => {}
+                Err(std::fs::TryLockError::WouldBlock) => {
+                    return Err(boxed_error("Telesram is already running".to_owned()));
+                }
+                Err(error) => {
+                    return Err(boxed_error(format!(
+                        "failed to lock Telesram instance: {error}"
+                    )));
+                }
+            }
+            app.manage(instance_lock);
             let settings = Arc::new(SettingsStore::load(runtime_dir.join("settings.json"))?);
             let state = WindowState::new(settings).map_err(boxed_error)?;
             app.manage(state);

@@ -2,7 +2,7 @@
 
 Rust/Tauri 2 desktop shell for Yandex Telemost (`https://telemost.360.yandex.ru`) on macOS 26+ Apple Silicon. The historical parity target is [Yangertron `c6df711`](https://github.com/longday/yangertron/commit/c6df711b3acff9b4e6208197de93a34c9fc9da13), except the retired Messenger destination and application-managed proxies.
 
-The [approved scope amendments](_bmad-output/implementation-artifacts/spec-telesram-desktop-app.md#approved-scope-amendment-current-telemost-service) define the current destination and exclude application-managed proxies. Authenticated calls, sharing, and comparable resource measurements remain open.
+The [approved scope amendments](_bmad-output/implementation-artifacts/spec-telesram-desktop-app.md#approved-scope-amendment-current-telemost-service) define the current destination and exclude application-managed proxies. Comparable resource measurements and independent verification of remote screen-share delivery remain open.
 
 ## Run
 
@@ -26,7 +26,7 @@ Sign in and grant camera, microphone, or screen-recording access yourself when m
 
 ## Controls and storage
 
-- **Telemost menu:** Managed Mode, Close to Tray, Show on Startup, zoom, and Developer Tools. The Web Inspector can open docked inside the main window.
+- **control menu:** Managed Mode, Close to Tray, Show on Startup, zoom, and Developer Tools. The Web Inspector can open docked inside the main window.
 - **Tray:** Show Window, Hide Window, Quit; a left click toggles the main window.
 - Managed Mode reloads the page, blocks a pinned WebKit-compatible subset of EasyPrivacy and uBlock Privacy network rules, and hides `div.yamb-global-bar`. It keeps exact Telemost/authentication HTTPS hosts inside the window, opens other links in the default browser, and redirects internal popups into the main window. Document navigations and essential Telemost/authentication subresources are exempt.
 - `.runtime/settings.json` stores geometry and toggles. Cookies and website data belong to WebKit's persistent OS-managed data store, not that JSON file.
@@ -50,7 +50,7 @@ WebKit uses its normal networking, which may inherit system proxy/PAC settings. 
 
 Before proxy removal, native controlled fixtures exercised menus/tray, window and restart behavior, unread indication, zoom including window recreation, managed filtering and document exemptions, popup/external navigation, and persistent cookies. The proxy implementation and its tests have been removed with the feature.
 
-The current Telemost landing page and Yandex ID login form opened inside an isolated native window with Managed Mode enabled. The updated working bundle then opened an authenticated Telemost session using the existing WebKit profile; no credentials were entered during this check. The user deferred a new-call test. Real calls and delivery of a screen-sharing stream to a remote participant remain unverified. A successful local WebKit capture is not proof of a successful call. Comparable release-workload RAM measurements remain open; no savings are claimed.
+The current Telemost landing page and Yandex ID login form opened inside an isolated native window with Managed Mode enabled. The updated working bundle then opened an authenticated Telemost session using the existing WebKit profile; no credentials were entered during this check. The user later reported successful screen sharing in a live call after switching the macOS WebKit user agent to Safari; remote participant receipt was not independently checked. Comparable release-workload RAM measurements remain open; no savings are claimed.
 
 The user confirmed that Web Inspector opening docked inside the working window is acceptable. An earlier isolated build also demonstrated WebKit's separate-window Detach control. The app no longer overrides WebKit's inspector placement.
 

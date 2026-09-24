@@ -57,9 +57,9 @@ impl MenuControls {
         let devtools =
             MenuItem::with_id(app, DEVTOOLS_ID, "Developer Tools", true, None::<&str>)
                 .map_err(|error| format!("failed to create developer tools menu item: {error}"))?;
-        let telemost = Submenu::with_items(
+        let control = Submenu::with_items(
             app,
-            "Telemost",
+            "Control",
             true,
             &[
                 &managed_mode,
@@ -72,9 +72,9 @@ impl MenuControls {
                 &devtools,
             ],
         )
-        .map_err(|error| format!("failed to create Telemost menu: {error}"))?;
-        menu.append(&telemost)
-            .map_err(|error| format!("failed to add Telemost menu: {error}"))?;
+        .map_err(|error| format!("failed to create control menu: {error}"))?;
+        menu.append(&control)
+            .map_err(|error| format!("failed to add control menu: {error}"))?;
         app.set_menu(menu)
             .map_err(|error| format!("failed to install application menu: {error}"))?;
 
