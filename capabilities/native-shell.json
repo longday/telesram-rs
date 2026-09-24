@@ -1,0 +1,6 @@
+{
+  "identifier": "native-shell",
+  "description": "No native IPC permissions. Keeps Tauri's watched capabilities directory present.",
+  "windows": ["messenger"],
+  "permissions": []
+}

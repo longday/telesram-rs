@@ -1,0 +1,12 @@
+{
+  "productName": "Telesram",
+  "version": "0.1.0",
+  "identifier": "dev.longday.telesram",
+  "app": { "windows": [] },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "icon": ["assets/messenger.png"],
+    "macOS": { "minimumSystemVersion": "26.0", "infoPlist": "Info.plist" }
+  }
+}
