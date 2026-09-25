@@ -29,9 +29,10 @@ const MANAGED_RULES: &str = include_str!("../assets/managed-rules.json");
 
 /// Configures the native WKWebView before the caller navigates to Telemost.
 ///
-/// `ready` is invoked only after the managed rule list has either been added or
-/// an actionable error is known. The caller must not navigate before success,
-/// otherwise early requests can escape the blocker.
+/// Element fullscreen is enabled before `ready` is called, even without managed
+/// rules. `ready` is invoked only after the managed rule list has either been
+/// added or an actionable error is known. The caller must not navigate before
+/// success, otherwise early requests can escape the blocker.
 pub fn configure(
     webview: &WebviewWindow,
     managed: bool,
@@ -41,6 +42,13 @@ pub fn configure(
     let scheduled = webview.with_webview({
         let ready = Arc::clone(&ready);
         move |platform| {
+            unsafe {
+                let native_webview = &*platform.inner().cast::<WKWebView>();
+                native_webview
+                    .configuration()
+                    .preferences()
+                    .setElementFullscreenEnabled(true);
+            }
             let controller = platform.controller().cast::<WKUserContentController>();
 
             if let Err(error) = ensure_dock_icon() {

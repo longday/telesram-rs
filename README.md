@@ -2,7 +2,7 @@
 
 Rust/Tauri 2 desktop shell for Yandex Telemost (`https://telemost.360.yandex.ru`) on macOS 26+ Apple Silicon. The historical parity target is [Yangertron `c6df711`](https://github.com/longday/yangertron/commit/c6df711b3acff9b4e6208197de93a34c9fc9da13), except the retired Messenger destination and application-managed proxies.
 
-The [approved scope amendments](_bmad-output/implementation-artifacts/spec-telesram-desktop-app.md#approved-scope-amendment-current-telemost-service) define the current destination and exclude application-managed proxies. Comparable resource measurements and independent verification of remote screen-share delivery remain open.
+The [approved scope amendments](_bmad-output/implementation-artifacts/spec-telesram-desktop-app.md#approved-scope-amendment-current-telemost-service) define the current destination and exclude application-managed proxies. Comparable resource measurements, independent verification of remote screen-share delivery, and fullscreen behavior in a real call remain open.
 
 ## Run
 
@@ -51,6 +51,8 @@ WebKit uses its normal networking, which may inherit system proxy/PAC settings. 
 Before proxy removal, native controlled fixtures exercised menus/tray, window and restart behavior, unread indication, zoom including window recreation, managed filtering and document exemptions, popup/external navigation, and persistent cookies. The proxy implementation and its tests have been removed with the feature.
 
 The current Telemost landing page and Yandex ID login form opened inside an isolated native window with Managed Mode enabled. The updated working bundle then opened an authenticated Telemost session using the existing WebKit profile; no credentials were entered during this check. The user later reported successful screen sharing in a live call after switching the macOS WebKit user agent to Safari; remote participant receipt was not independently checked. Comparable release-workload RAM measurements remain open; no savings are claimed.
+
+Telesram enables WebKit's element Fullscreen API for pages in the main webview. A local `WKWebView` fixture reported `document.fullscreenEnabled=true` after configuration; in a real call, check the button, entering/exiting fullscreen, and hiding/restoring the window from the tray after restarting the rebuilt app.
 
 The user confirmed that Web Inspector opening docked inside the working window is acceptable. An earlier isolated build also demonstrated WebKit's separate-window Detach control. The app no longer overrides WebKit's inspector placement.
 
