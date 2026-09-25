@@ -8,6 +8,8 @@ use crate::settings::Settings;
 pub const MANAGED_MODE_ID: &str = "managed-mode";
 pub const CLOSE_TO_TRAY_ID: &str = "close-to-tray";
 pub const SHOW_ON_STARTUP_ID: &str = "show-on-startup";
+pub const RELOAD_ID: &str = "reload-page";
+pub const HOME_ID: &str = "home";
 pub const ZOOM_IN_ID: &str = "zoom-in";
 pub const ZOOM_OUT_ID: &str = "zoom-out";
 pub const DEVTOOLS_ID: &str = "developer-tools";
@@ -27,6 +29,8 @@ pub enum MenuAction {
     SetManagedMode(bool),
     SetCloseToTray(bool),
     SetShowOnStartup(bool),
+    Reload,
+    Home,
     AdjustZoom(f64),
     OpenDevtools,
 }
@@ -50,6 +54,10 @@ impl MenuControls {
         )?;
         let separator = PredefinedMenuItem::separator(app)
             .map_err(|error| format!("failed to create menu separator: {error}"))?;
+        let reload = MenuItem::with_id(app, RELOAD_ID, "Reload Page", true, None::<&str>)
+            .map_err(|error| format!("failed to create reload menu item: {error}"))?;
+        let home = MenuItem::with_id(app, HOME_ID, "Home", true, None::<&str>)
+            .map_err(|error| format!("failed to create home menu item: {error}"))?;
         let zoom_in = MenuItem::with_id(app, ZOOM_IN_ID, "Zoom +10%", true, None::<&str>)
             .map_err(|error| format!("failed to create zoom-in menu item: {error}"))?;
         let zoom_out = MenuItem::with_id(app, ZOOM_OUT_ID, "Zoom -10%", true, None::<&str>)
@@ -65,6 +73,9 @@ impl MenuControls {
                 &managed_mode,
                 &close_to_tray,
                 &show_on_startup,
+                &separator,
+                &reload,
+                &home,
                 &separator,
                 &zoom_in,
                 &zoom_out,
@@ -90,6 +101,8 @@ impl MenuControls {
             MANAGED_MODE_ID => Some(MenuAction::SetManagedMode(!settings.managed_mode)),
             CLOSE_TO_TRAY_ID => Some(MenuAction::SetCloseToTray(!settings.close_to_tray)),
             SHOW_ON_STARTUP_ID => Some(MenuAction::SetShowOnStartup(!settings.show_on_startup)),
+            RELOAD_ID => Some(MenuAction::Reload),
+            HOME_ID => Some(MenuAction::Home),
             ZOOM_IN_ID => Some(MenuAction::AdjustZoom(ZOOM_STEP)),
             ZOOM_OUT_ID => Some(MenuAction::AdjustZoom(-ZOOM_STEP)),
             DEVTOOLS_ID => Some(MenuAction::OpenDevtools),

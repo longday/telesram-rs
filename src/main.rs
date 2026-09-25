@@ -155,6 +155,8 @@ fn handle_menu_event(app: &tauri::AppHandle, id: &str) -> Result<(), String> {
                 .map_err(|error| format!("failed to persist Show on Startup: {error}"))?;
             controls.synchronize(&next)?;
         }
+        MenuAction::Reload => window::reload(app)?,
+        MenuAction::Home => window::go_home(app)?,
         MenuAction::AdjustZoom(delta) => window::adjust_zoom(app, delta)?,
         MenuAction::OpenDevtools => window::ensure_main_window(app)?.open_devtools(),
     }

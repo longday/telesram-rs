@@ -312,6 +312,39 @@ pub fn adjust_zoom(app: &AppHandle, delta: f64) -> Result<(), String> {
     macos::adjust_zoom(&ensure_main_window(app)?, delta)
 }
 
+pub fn reload(app: &AppHandle) -> Result<(), String> {
+    if let Some(window) = configured_main_window(app)? {
+        window
+            .reload()
+            .map_err(|error| format!("failed to reload page: {error}"))?;
+    }
+    Ok(())
+}
+
+pub fn go_home(app: &AppHandle) -> Result<(), String> {
+    if let Some(window) = configured_main_window(app)? {
+        let url = Url::parse(TELEMOST_URL)
+            .map_err(|error| format!("configured Telemost URL is invalid: {error}"))?;
+        window
+            .navigate(url)
+            .map_err(|error| format!("failed to navigate to Telemost: {error}"))?;
+    }
+    Ok(())
+}
+
+// A new window loads Telemost itself once configured; loading earlier would bypass Managed Mode rules.
+fn configured_main_window(app: &AppHandle) -> Result<Option<WebviewWindow>, String> {
+    let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
+        show_or_create(app)?;
+        return Ok(None);
+    };
+    Ok(app
+        .state::<WindowState>()
+        .native_surface_ready
+        .load(Ordering::Acquire)
+        .then_some(window))
+}
+
 pub fn refresh_unread(app: &AppHandle) -> Result<(), String> {
     let state = app.state::<WindowState>();
     let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {

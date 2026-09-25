@@ -4,3 +4,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-conventional-production-bundle.md`
   summary: Determine which application receives macOS media permissions when `start.sh` executes the bundle binary directly.
   evidence: The launcher executes `Contents/MacOS/telesram-rs` rather than using LaunchServices; a real permission request and inspection of macOS privacy attribution would settle whether prompts are attributed to the app or its terminal.
+- source_spec: `_bmad-output/implementation-artifacts/spec-menu-reload-and-home.md`
+  summary: Add a Cmd+R accelerator for Reload Page.
+  evidence: Both new menu items are created with no accelerator (`src/menu.rs`), so the standard refresh shortcut does nothing.

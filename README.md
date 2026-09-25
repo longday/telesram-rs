@@ -27,7 +27,7 @@ Sign in and grant camera, microphone, or screen-recording access yourself when m
 
 ## Controls and storage
 
-- **control menu:** Managed Mode, Close to Tray, Show on Startup, zoom, and Developer Tools. The Web Inspector can open docked inside the main window.
+- **control menu:** Managed Mode, Close to Tray, Show on Startup, Reload Page, Home (loads the configured Telemost URL), zoom, and Developer Tools. The Web Inspector can open docked inside the main window.
 - **Tray:** Show Window, Hide Window, Quit; a left click toggles the main window.
 - Managed Mode reloads the page, blocks a pinned WebKit-compatible subset of EasyPrivacy and uBlock Privacy network rules, and hides `div.yamb-global-bar`. It keeps exact Telemost/authentication HTTPS hosts inside the window, opens other links in the default browser, and redirects internal popups into the main window. Document navigations and essential Telemost/authentication subresources are exempt.
 - `.runtime/settings.json` stores geometry and toggles. Cookies and website data belong to WebKit's persistent OS-managed data store, not that JSON file.
