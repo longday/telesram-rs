@@ -8,4 +8,4 @@ if (( $# != 0 )); then
   exit 2
 fi
 "$ROOT/build.sh"
-exec "$ROOT/.runtime/Telesram.app/Contents/MacOS/telesram-rs"
+exec "$ROOT/.runtime/target/release/bundle/macos/Telesram.app/Contents/MacOS/telesram-rs"

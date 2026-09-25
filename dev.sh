@@ -40,11 +40,9 @@ rustup show active-toolchain >/dev/null
 cargo build --locked --features custom-protocol
 
 APP="$ROOT/.runtime/Telesram.app"
-STAMP="$ROOT/.runtime/Telesram.app.build"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 STAGED_BINARY="$(mktemp "$APP/Contents/MacOS/.telesram-rs.XXXXXX")"
 trap 'rm -f -- "$STAGED_BINARY"' EXIT
-rm -f -- "$STAMP"
 cp -p "$CARGO_TARGET_DIR/debug/telesram-rs" "$STAGED_BINARY"
 mv -f "$STAGED_BINARY" "$APP/Contents/MacOS/telesram-rs"
 cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
@@ -57,5 +55,4 @@ VERSION="$(/usr/bin/plutil -extract version raw -o - tauri.conf.json)"
 /usr/libexec/PlistBuddy -c 'Add :CFBundlePackageType string APPL' "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $MACOSX_DEPLOYMENT_TARGET" "$APP/Contents/Info.plist"
 /usr/bin/codesign --force --sign - "$APP"
-print -r -- debug > "$STAMP"
 exec "$APP/Contents/MacOS/telesram-rs"

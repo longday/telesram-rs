@@ -37,28 +37,29 @@ if ! xcode-select --print-path >/dev/null; then
 fi
 mkdir -p "$RUSTUP_HOME" "$CARGO_HOME" "$CARGO_TARGET_DIR"
 rustup show active-toolchain >/dev/null
-cargo build --locked --release --features custom-protocol
 
-APP="$ROOT/.runtime/Telesram.app"
-STAMP="$ROOT/.runtime/Telesram.app.build"
-RELEASE_BINARY="$CARGO_TARGET_DIR/release/telesram-rs"
-BUILD_HASH="$(/usr/bin/shasum -a 256 "$RELEASE_BINARY" "$ROOT/Info.plist" "$ROOT/tauri.conf.json" | /usr/bin/shasum -a 256 | /usr/bin/cut -d ' ' -f 1)"
-if [[ ! -x "$APP/Contents/MacOS/telesram-rs" || ! -f "$STAMP" || "$(cat "$STAMP")" != "release:$BUILD_HASH" ]]; then
-  mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-  STAGED_BINARY="$(mktemp "$APP/Contents/MacOS/.telesram-rs.XXXXXX")"
-  trap 'rm -f -- "$STAGED_BINARY"' EXIT
-  rm -f -- "$STAMP"
-  cp -p "$RELEASE_BINARY" "$STAGED_BINARY"
-  mv -f "$STAGED_BINARY" "$APP/Contents/MacOS/telesram-rs"
-  cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c 'Add :CFBundleExecutable string telesram-rs' "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c "Add :CFBundleName string $(/usr/bin/plutil -extract productName raw -o - tauri.conf.json)" "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string $(/usr/bin/plutil -extract identifier raw -o - tauri.conf.json)" "$APP/Contents/Info.plist"
-  VERSION="$(/usr/bin/plutil -extract version raw -o - tauri.conf.json)"
-  /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $VERSION" "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $VERSION" "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c 'Add :CFBundlePackageType string APPL' "$APP/Contents/Info.plist"
-  /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string $MACOSX_DEPLOYMENT_TARGET" "$APP/Contents/Info.plist"
-  /usr/bin/codesign --force --sign - "$APP"
-  print -r -- "release:$BUILD_HASH" > "$STAMP"
+CLI_VERSION=2.11.5
+CLI_ROOT="$ROOT/.runtime/tauri-cli"
+CLI="$CLI_ROOT/bin/cargo-tauri"
+if [[ ! -x "$CLI" || "$("$CLI" --version)" != "tauri-cli $CLI_VERSION" ]]; then
+  cargo install tauri-cli --version "=$CLI_VERSION" --locked --force --root "$CLI_ROOT" --target-dir "$ROOT/.runtime/tauri-cli-target"
+  rm -rf -- "$ROOT/.runtime/tauri-cli-target"
+fi
+
+unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY
+unset APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID APPLE_API_KEY APPLE_API_ISSUER APPLE_API_KEY_PATH
+"$CLI" build --ci --bundles app -- --locked
+
+APP="$CARGO_TARGET_DIR/release/bundle/macos/Telesram.app"
+/usr/bin/codesign --verify --deep --strict "$APP"
+SIGNING_INFO="$(/usr/bin/codesign -dv --verbose=4 "$APP" 2>&1)"
+if [[ "$SIGNING_INFO" != *'Signature=adhoc'* || "$SIGNING_INFO" != *'runtime)'* ]]; then
+  print -u2 'The release bundle is not ad-hoc signed with Hardened Runtime.'
+  exit 1
+fi
+ENTITLEMENTS="$(/usr/bin/codesign -d --entitlements - --xml "$APP")"
+if [[ "$(print -r -- "$ENTITLEMENTS" | /usr/libexec/PlistBuddy -c 'Print :com.apple.security.device.camera' /dev/stdin)" != true ||
+      "$(print -r -- "$ENTITLEMENTS" | /usr/libexec/PlistBuddy -c 'Print :com.apple.security.device.audio-input' /dev/stdin)" != true ]]; then
+  print -u2 'The release bundle is missing camera or microphone entitlements.'
+  exit 1
 fi

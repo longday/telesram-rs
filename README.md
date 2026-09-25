@@ -6,7 +6,7 @@ The [approved scope amendments](_bmad-output/implementation-artifacts/spec-teles
 
 ## Run
 
-Prerequisites: native Apple Silicon macOS 26+, Apple Command Line Tools, and `rustup` on `PATH`.
+Prerequisites: native Apple Silicon macOS 26+, Apple Command Line Tools, `rustup` on `PATH`, and network access for the first build to install pinned Tauri CLI 2.11.5 into `.runtime/`.
 
 ```sh
 ./build.sh
@@ -15,13 +15,13 @@ Prerequisites: native Apple Silicon macOS 26+, Apple Command Line Tools, and `ru
 ./reset.sh
 ```
 
-`build.sh` checks prerequisites, runs an incremental locked release build, and assembles/signs `.runtime/Telesram.app` without launching it. `start.sh` runs `build.sh` and then launches that app, so source changes are picked up on the next launch. Every launch needs a successful Cargo build; if it fails, the app does not start, even when an older bundle exists.
+`build.sh` runs a locked, optimized Tauri release build and creates an ad-hoc-signed `.runtime/target/release/bundle/macos/Telesram.app` without launching it. Cargo's compiled binary is under `.runtime/target/release/`; the first build installs the pinned CLI locally. `start.sh` rebuilds and launches the release bundle; a failed build does not launch an older copy.
 
-`dev.sh` builds the debug binary on every invocation. Build and launch scripts use `.runtime/Telesram.app`, the same bundle ID, `.runtime/settings.json`, and WebKit login data. Switching modes replaces and locally signs that bundle; close any running Telesram process before building. Debug/release signing changes may require re-granting macOS media permissions.
+`dev.sh` builds and launches a separate debug bundle at `.runtime/Telesram.app`. Both bundles use the same identifier, `.runtime/settings.json`, and WebKit login data. Close any running Telesram process before building; switching bundles or rebuilding changed code may require re-granting camera, microphone, or screen-recording permission. Unlike the release bundle, the debug bundle is signed without Hardened Runtime or media entitlements, so it cannot verify release-mode permissions. An older `.runtime/Telesram.app` remains the previous release build until `dev.sh` replaces it; remove it and the unused `.runtime/Telesram.app.build` stamp manually if you no longer need that copy.
 
 `reset.sh` requires an interactive terminal, a stopped application, and typing `RESET dev.longday.telesram`. It deletes only `~/Library/WebKit/dev.longday.telesram/`, including cookies, website storage, and compiled content rules; both modes will be signed out. It does not delete `.runtime/` or macOS privacy permissions. No reset runs automatically.
 
-Tauri may regenerate ignored ACL metadata under its fixed `gen/schemas/` path. `capabilities/native-shell.json` grants no native IPC permissions and keeps Tauri's watched capability directory present. Configuration paths are tied to this checkout at compile time; rebuild after moving it. [✓ `build.sh`, `start.sh`, `dev.sh`, `reset.sh`, `src/config.rs`, `tauri.conf.json`]
+Tauri may regenerate ignored ACL metadata under its fixed `gen/schemas/` path and update `Cargo.toml` when configuration-driven features change. `capabilities/native-shell.json` grants no native IPC permissions and keeps Tauri's watched capability directory present. Configuration paths are tied to this checkout at compile time; rebuild after moving it. [✓ `build.sh`, `start.sh`, `dev.sh`, `reset.sh`, `src/config.rs`, `tauri.conf.json`]
 
 Sign in and grant camera, microphone, or screen-recording access yourself when macOS requests it. The application does not import another browser's session.
 
@@ -31,7 +31,7 @@ Sign in and grant camera, microphone, or screen-recording access yourself when m
 - **Tray:** Show Window, Hide Window, Quit; a left click toggles the main window.
 - Managed Mode reloads the page, blocks a pinned WebKit-compatible subset of EasyPrivacy and uBlock Privacy network rules, and hides `div.yamb-global-bar`. It keeps exact Telemost/authentication HTTPS hosts inside the window, opens other links in the default browser, and redirects internal popups into the main window. Document navigations and essential Telemost/authentication subresources are exempt.
 - `.runtime/settings.json` stores geometry and toggles. Cookies and website data belong to WebKit's persistent OS-managed data store, not that JSON file.
-- Developer Tools is enabled in the local release build through Tauri's `devtools` feature. WebKit uses private macOS inspector APIs; this build is not suitable for App Store distribution. The inspector can expose authenticated page data.
+- Developer Tools is enabled in the local release build through Tauri's `devtools` feature. WebKit uses private macOS inspector APIs; this ad-hoc-signed bundle is neither Developer ID signed nor notarized and is not suitable for public/App Store distribution. The inspector can expose authenticated page data.
 
 [✓ `src/menu.rs`, `src/tray.rs`, `src/window.rs`, `src/macos.rs`, `src/settings.rs`; isolated native menu and separate-window smoke]
 
@@ -59,6 +59,6 @@ The user confirmed that Web Inspector opening docked inside the working window i
 
 The enlarged list compiled in an isolated native `WKContentRuleListStore`. A nonpersistent `WKWebView` fixture returned `display: block` for the bar with no rules and `display: none` with rules; an unrelated element stayed visible. Synthetic URL checks covered Yandex service exemptions, analytics hosts, lookalike hosts, and document navigations. No working-profile traffic was inspected.
 
-`build.sh` completed a release build and a second incremental build; the resulting `.app` passed strict signature verification. An isolated `start.sh` fixture ran build before app and did not launch app when build failed. A fake-HOME reset fixture refused noninteractive, cancelled, and symlink-swapped requests, then removed only its WebKit directory on confirmation. The real debug binary built; the new `start.sh` has not been launched against the working WebKit profile.
+`build.sh` produced the Tauri release bundle under `.runtime/target/release/bundle/macos` and completed an incremental second build. Its strict code signature is ad-hoc with Hardened Runtime and camera/microphone entitlements; Tauri reported notarization skipped even with synthetic Apple signing variables. Isolated fixtures confirmed `start.sh` builds before launch and never launches after build failure, while `dev.sh` still launches its own signed bundle without replacing the release bundle. Neither launcher was run against the working WebKit profile; camera/microphone capture, screen sharing, and Web Inspector remain unverified under the new Hardened Runtime signature.
 
-[✓ `./build.sh` twice, isolated `start.sh` fixture, `codesign --verify --deep --strict`; prior `cargo test --locked --features custom-protocol` (2 passed), `cargo build --locked --features custom-protocol`, reset fixture and [screen-sharing probe](_bmad-output/planning-artifacts/research/screen-sharing-probe.md)]
+[✓ `./build.sh`, synthetic-Apple-env `./build.sh`, `codesign --verify --deep --strict`, `codesign -dv --verbose=4`, `codesign -d --entitlements - --xml`, isolated start/debug fixtures; prior `cargo test --locked --features custom-protocol` (2 passed), reset fixture and [screen-sharing probe](_bmad-output/planning-artifacts/research/screen-sharing-probe.md)]
