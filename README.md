@@ -9,18 +9,19 @@ The [approved scope amendments](_bmad-output/implementation-artifacts/spec-teles
 Prerequisites: native Apple Silicon macOS 26+, Apple Command Line Tools, and `rustup` on `PATH`.
 
 ```sh
+./build.sh
 ./start.sh
 ./dev.sh
 ./reset.sh
 ```
 
-`start.sh` builds the release binary only if `.runtime/target/release/telesram-rs` is absent. Later launches use that cached binary without Cargo; source edits do **not** rebuild it. To refresh production after editing, build explicitly with `RUSTUP_HOME="$PWD/.runtime/rustup" CARGO_HOME="$PWD/.runtime/cargo" CARGO_TARGET_DIR="$PWD/.runtime/target" cargo build --locked --release --features custom-protocol`, then run `./start.sh`.
+`build.sh` checks prerequisites, runs an incremental locked release build, and assembles/signs `.runtime/Telesram.app` without launching it. `start.sh` runs `build.sh` and then launches that app, so source changes are picked up on the next launch. Every launch needs a successful Cargo build; if it fails, the app does not start, even when an older bundle exists.
 
-`dev.sh` builds the debug binary on every invocation. Both scripts use `.runtime/Telesram.app`, the same bundle ID, `.runtime/settings.json`, and WebKit login data. Switching modes replaces and locally signs that bundle; close any running Telesram process first. Debug/release signing changes may require re-granting macOS media permissions.
+`dev.sh` builds the debug binary on every invocation. Build and launch scripts use `.runtime/Telesram.app`, the same bundle ID, `.runtime/settings.json`, and WebKit login data. Switching modes replaces and locally signs that bundle; close any running Telesram process before building. Debug/release signing changes may require re-granting macOS media permissions.
 
 `reset.sh` requires an interactive terminal, a stopped application, and typing `RESET dev.longday.telesram`. It deletes only `~/Library/WebKit/dev.longday.telesram/`, including cookies, website storage, and compiled content rules; both modes will be signed out. It does not delete `.runtime/` or macOS privacy permissions. No reset runs automatically.
 
-Tauri may regenerate ignored ACL metadata under its fixed `gen/schemas/` path. `capabilities/native-shell.json` grants no native IPC permissions and keeps Tauri's watched capability directory present. Configuration paths are tied to this checkout at compile time; rebuild after moving it. [✓ `start.sh`, `dev.sh`, `reset.sh`, `src/config.rs`, `tauri.conf.json`]
+Tauri may regenerate ignored ACL metadata under its fixed `gen/schemas/` path. `capabilities/native-shell.json` grants no native IPC permissions and keeps Tauri's watched capability directory present. Configuration paths are tied to this checkout at compile time; rebuild after moving it. [✓ `build.sh`, `start.sh`, `dev.sh`, `reset.sh`, `src/config.rs`, `tauri.conf.json`]
 
 Sign in and grant camera, microphone, or screen-recording access yourself when macOS requests it. The application does not import another browser's session.
 
@@ -58,6 +59,6 @@ The user confirmed that Web Inspector opening docked inside the working window i
 
 The enlarged list compiled in an isolated native `WKContentRuleListStore`. A nonpersistent `WKWebView` fixture returned `display: block` for the bar with no rules and `display: none` with rules; an unrelated element stayed visible. Synthetic URL checks covered Yandex service exemptions, analytics hosts, lookalike hosts, and document navigations. No working-profile traffic was inspected.
 
-An isolated launcher fixture verified `start.sh` → `start.sh` → `dev.sh` → `start.sh`: Cargo ran only for the first release build and the debug build; the restored `.app` signature verified. A fake-HOME reset fixture refused noninteractive, cancelled, and symlink-swapped requests, then removed only its WebKit directory on confirmation. The real debug binary built; neither script was launched against the working WebKit profile.
+`build.sh` completed a release build and a second incremental build; the resulting `.app` passed strict signature verification. An isolated `start.sh` fixture ran build before app and did not launch app when build failed. A fake-HOME reset fixture refused noninteractive, cancelled, and symlink-swapped requests, then removed only its WebKit directory on confirmation. The real debug binary built; the new `start.sh` has not been launched against the working WebKit profile.
 
-[✓ `cargo test --locked --features custom-protocol` (2 passed), `cargo build --locked --features custom-protocol`, isolated launcher/reset fixtures, `codesign --verify --deep --strict`; prior [screen-sharing probe](_bmad-output/planning-artifacts/research/screen-sharing-probe.md)]
+[✓ `./build.sh` twice, isolated `start.sh` fixture, `codesign --verify --deep --strict`; prior `cargo test --locked --features custom-protocol` (2 passed), `cargo build --locked --features custom-protocol`, reset fixture and [screen-sharing probe](_bmad-output/planning-artifacts/research/screen-sharing-probe.md)]
