@@ -48,7 +48,7 @@ Verification: the release bundle was selected by macOS for `telemost://`; cold l
 
 - **control menu:** Managed Mode, Close to Tray, Show on Startup, Reload Page, Home (loads the configured Telemost URL), zoom, and Developer Tools. The Web Inspector can open docked inside the main window.
 - **Tray:** Show Window, Hide Window, Quit; a left click toggles the main window.
-- **Unread indicator:** a dot changes the tray icon's silhouette; template rendering follows the menu-bar theme. The existing title-digit signal is tracked on both Telemost messenger roots, with tooltip and Dock badge updates. Muted messages follow the website's title-counter behavior.
+- **Unread indicator:** a dot changes the tray icon's silhouette; template rendering follows the menu-bar theme. The existing title-digit signal is tracked across routes on both Telemost HTTPS origins, including `/threads` and `/chats/...`, with tooltip and Dock badge updates. Muted messages follow the website's title-counter behavior.
 - Managed Mode reloads the page, blocks a pinned WebKit-compatible subset of EasyPrivacy and uBlock Privacy network rules, and hides `div.yamb-global-bar`. It keeps exact Telemost/authentication HTTPS hosts inside the window, opens other links in the default browser, and redirects internal popups into the main window. Document navigations and essential Telemost/authentication subresources are exempt.
 - `.runtime/settings.json` stores geometry and toggles. Cookies and website data belong to WebKit's persistent OS-managed data store, not that JSON file.
 - Developer Tools is enabled in the local release build through Tauri's `devtools` feature. WebKit uses private macOS inspector APIs; this ad-hoc-signed bundle is neither Developer ID signed nor notarized and is not suitable for public/App Store distribution. The inspector can expose authenticated page data.
@@ -56,6 +56,8 @@ Verification: the release bundle was selected by macOS for `telemost://`; cold l
 [✓ `src/menu.rs`, `src/tray.rs`, `src/window.rs`, `src/macos.rs`, `src/settings.rs`; isolated native menu and separate-window smoke]
 
 The unread template image was checked with a native `NSStatusBarButton` render: normal and unread differed after the fix, and clearing unread restored the normal image. This isolates icon rendering without changing chat read state. [✓ native AppKit render probe]
+
+An isolated native WebKit fixture kept the tray tooltip and Dock badge set across `history.pushState('/threads')` and `history.replaceState('/chats/example')` without changing the unread title, then cleared both when the title counter disappeared. The navigation regression failed on the captured `/threads` URL before the fix; all eight tests passed afterward. [✓ native unread-route smoke; `cargo test --locked --features custom-protocol`]
 
 ## Managed filter sources
 

@@ -44,7 +44,6 @@ impl NavigationPolicy {
             && url.port().is_none()
             && url.username().is_empty()
             && url.password().is_none()
-            && normalize_pathname(url.path()) == normalize_pathname(self.main_url.path())
     }
 
     pub fn open_external(&self, app: &AppHandle, url: &Url) -> Result<(), String> {
@@ -53,15 +52,6 @@ impl NavigationPolicy {
             .map_err(|error| {
                 format!("failed to open external navigation in the default browser: {error}")
             })
-    }
-}
-
-pub fn normalize_pathname(pathname: &str) -> &str {
-    let normalized = pathname.trim_end_matches('/');
-    if normalized.is_empty() {
-        "/"
-    } else {
-        normalized
     }
 }
 
@@ -94,21 +84,24 @@ mod tests {
     }
 
     #[test]
-    fn unread_tracking_accepts_both_telemost_roots_only() {
+    fn unread_tracking_follows_routes_on_both_telemost_origins() {
         let policy = NavigationPolicy::new(crate::config::TELEMOST_URL).unwrap();
         for raw in [
             "https://telemost.360.yandex.ru/?skip_app=1#/chats/example",
             "https://telemost.yandex.ru/?skip_app=1#/threads",
+            "https://telemost.360.yandex.ru/threads",
+            "https://telemost.360.yandex.ru/chats/example",
+            "https://telemost.yandex.ru/threads/",
+            "https://telemost.yandex.ru/j/123",
         ] {
             assert!(policy.is_main(&Url::parse(raw).unwrap()), "{raw}");
         }
         for raw in [
-            "http://telemost.360.yandex.ru/",
-            "https://telemost.360.yandex.ru:8443/",
-            "https://user@telemost.360.yandex.ru/",
-            "https://telemost.yandex.ru.evil.test/",
-            "https://passport.yandex.ru/",
-            "https://telemost.yandex.ru/j/123",
+            "http://telemost.yandex.ru/threads",
+            "https://telemost.360.yandex.ru:8443/threads",
+            "https://user@telemost.yandex.ru/threads",
+            "https://telemost.yandex.ru.evil.test/threads",
+            "https://passport.yandex.ru/threads",
         ] {
             assert!(!policy.is_main(&Url::parse(raw).unwrap()), "{raw}");
         }
