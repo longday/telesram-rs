@@ -1,4 +1,5 @@
 mod config;
+mod deep_link;
 mod macos;
 mod menu;
 mod navigation;
@@ -33,9 +34,11 @@ fn run() -> Result<(), Box<dyn Error>> {
                 .build(),
         )
         .plugin(tauri_plugin_single_instance::init(
-            |app, _arguments, _working_directory| {
-                if let Err(error) = window::show_or_create(app) {
-                    eprintln!("[instance] failed to restore existing Telemost window: {error}");
+            |app, arguments, _working_directory| {
+                if !open_link_arguments(app, arguments.iter().skip(1).map(String::as_str)) {
+                    if let Err(error) = window::show_or_create(app) {
+                        eprintln!("[instance] failed to restore existing Telemost window: {error}");
+                    }
                 }
             },
         ))
@@ -68,6 +71,12 @@ fn run() -> Result<(), Box<dyn Error>> {
                 .map_err(boxed_error)?;
             app.manage(controls);
             window::ensure_main_window(app.handle()).map_err(boxed_error)?;
+            open_link_arguments(
+                app.handle(),
+                std::env::args_os()
+                    .skip(1)
+                    .filter_map(|argument| argument.into_string().ok()),
+            );
             Ok(())
         })
         .on_menu_event(|app, event| {
@@ -93,6 +102,14 @@ fn run() -> Result<(), Box<dyn Error>> {
         .build(tauri::generate_context!())?
         .run(|app, event| match event {
             #[cfg(target_os = "macos")]
+            RunEvent::Opened { urls } => {
+                for url in urls {
+                    if let Err(error) = window::open_deep_link(app, url.as_str()) {
+                        eprintln!("[deep-link] {error}");
+                    }
+                }
+            }
+            #[cfg(target_os = "macos")]
             RunEvent::Reopen { .. } => {
                 if let Err(error) = window::show_or_create(app) {
                     eprintln!("[activation] failed to restore Telemost window: {error}");
@@ -110,6 +127,26 @@ fn run() -> Result<(), Box<dyn Error>> {
         });
 
     Ok(())
+}
+
+fn open_link_arguments<S: AsRef<str>>(
+    app: &tauri::AppHandle,
+    arguments: impl Iterator<Item = S>,
+) -> bool {
+    let mut received = false;
+    for argument in arguments {
+        let argument = argument.as_ref();
+        if argument
+            .split_once(':')
+            .is_some_and(|(scheme, _)| scheme.eq_ignore_ascii_case("telemost"))
+        {
+            match window::open_deep_link(app, argument) {
+                Ok(()) => received = true,
+                Err(error) => eprintln!("[deep-link] {error}"),
+            }
+        }
+    }
+    received
 }
 
 fn handle_menu_event(app: &tauri::AppHandle, id: &str) -> Result<(), String> {

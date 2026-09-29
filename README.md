@@ -25,15 +25,37 @@ Tauri may regenerate ignored ACL metadata under its fixed `gen/schemas/` path an
 
 Sign in and grant camera, microphone, or screen-recording access yourself when macOS requests it. The application does not import another browser's session.
 
+## Telemost links
+
+Telesram handles the Telemost website's `telemost://` links:
+
+- `telemost://https://telemost.yandex.ru/j/<meeting-id>` and the `telemost.360.yandex.ru` equivalent.
+- `telemost://ychat/<telemost-host>/<path, query and fragment>` for those same two hosts.
+
+Links reuse and reveal the main window, including when the app starts or its window must be recreated. Navigation waits for native WebKit configuration. Incoming destinations are validated independently of Managed Mode; foreign hosts, credentials, nonstandard ports, and malformed meeting IDs are rejected. The destination receives `skip_app=1` to prevent automatic relaunch through the website.
+
+After building, register the release bundle with macOS LaunchServices:
+
+```sh
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$PWD/.runtime/target/release/bundle/macos/Telesram.app"
+```
+
+This changes macOS URL-handler registration, not browser login data. The original Telemost client should not compete for the scheme. The debug bundle inherits the same scheme declaration, so register the intended release bundle again after switching builds.
+
+Verification: the release bundle was selected by macOS for `telemost://`; cold launch opened the messenger threads route, and a link reopened the same window after Close to Tray. The user observed the expected nonexistent-meeting error from synthetic meeting links. Joining a live meeting through a deep link was not tested. [✓ `NSWorkspace.urlForApplication(toOpen:)`, `open`, Orca window observation, user confirmation]
+
 ## Controls and storage
 
 - **control menu:** Managed Mode, Close to Tray, Show on Startup, Reload Page, Home (loads the configured Telemost URL), zoom, and Developer Tools. The Web Inspector can open docked inside the main window.
 - **Tray:** Show Window, Hide Window, Quit; a left click toggles the main window.
+- **Unread indicator:** a dot changes the tray icon's silhouette; template rendering follows the menu-bar theme. The existing title-digit signal is tracked on both Telemost messenger roots, with tooltip and Dock badge updates. Muted messages follow the website's title-counter behavior.
 - Managed Mode reloads the page, blocks a pinned WebKit-compatible subset of EasyPrivacy and uBlock Privacy network rules, and hides `div.yamb-global-bar`. It keeps exact Telemost/authentication HTTPS hosts inside the window, opens other links in the default browser, and redirects internal popups into the main window. Document navigations and essential Telemost/authentication subresources are exempt.
 - `.runtime/settings.json` stores geometry and toggles. Cookies and website data belong to WebKit's persistent OS-managed data store, not that JSON file.
 - Developer Tools is enabled in the local release build through Tauri's `devtools` feature. WebKit uses private macOS inspector APIs; this ad-hoc-signed bundle is neither Developer ID signed nor notarized and is not suitable for public/App Store distribution. The inspector can expose authenticated page data.
 
 [✓ `src/menu.rs`, `src/tray.rs`, `src/window.rs`, `src/macos.rs`, `src/settings.rs`; isolated native menu and separate-window smoke]
+
+The unread template image was checked with a native `NSStatusBarButton` render: normal and unread differed after the fix, and clearing unread restored the normal image. This isolates icon rendering without changing chat read state. [✓ native AppKit render probe]
 
 ## Managed filter sources
 

@@ -3687,6 +3687,7 @@ dependencies = [
  "objc2-app-kit",
  "objc2-foundation",
  "objc2-web-kit",
+ "parking_lot",
  "serde_json",
  "tauri",
  "tauri-build",

@@ -65,6 +65,7 @@ fn normal_icon() -> Result<Image<'static>, String> {
         .map_err(|error| format!("failed to decode blue tray icon: {error}"))
 }
 
+// Template rendering ignores color; this asset has a distinct notification-dot silhouette.
 fn alert_icon() -> Result<Image<'static>, String> {
     Image::from_bytes(include_bytes!("../assets/tray-red-22.png"))
         .map_err(|error| format!("failed to decode red tray icon: {error}"))

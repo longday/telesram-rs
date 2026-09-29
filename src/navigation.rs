@@ -39,7 +39,11 @@ impl NavigationPolicy {
     }
 
     pub fn is_main(&self, url: &Url) -> bool {
-        url.host() == self.main_url.host()
+        url.scheme() == "https"
+            && (url.host() == self.main_url.host() || url.host_str() == Some("telemost.yandex.ru"))
+            && url.port().is_none()
+            && url.username().is_empty()
+            && url.password().is_none()
             && normalize_pathname(url.path()) == normalize_pathname(self.main_url.path())
     }
 
@@ -87,6 +91,26 @@ mod tests {
             assert!(!policy.is_internal(&Url::parse(url).unwrap()), "{url}");
         }
         assert!(policy.is_main(&Url::parse(crate::config::TELEMOST_URL).unwrap()));
-        assert!(!policy.is_main(&Url::parse("https://telemost.yandex.ru/").unwrap()));
+    }
+
+    #[test]
+    fn unread_tracking_accepts_both_telemost_roots_only() {
+        let policy = NavigationPolicy::new(crate::config::TELEMOST_URL).unwrap();
+        for raw in [
+            "https://telemost.360.yandex.ru/?skip_app=1#/chats/example",
+            "https://telemost.yandex.ru/?skip_app=1#/threads",
+        ] {
+            assert!(policy.is_main(&Url::parse(raw).unwrap()), "{raw}");
+        }
+        for raw in [
+            "http://telemost.360.yandex.ru/",
+            "https://telemost.360.yandex.ru:8443/",
+            "https://user@telemost.360.yandex.ru/",
+            "https://telemost.yandex.ru.evil.test/",
+            "https://passport.yandex.ru/",
+            "https://telemost.yandex.ru/j/123",
+        ] {
+            assert!(!policy.is_main(&Url::parse(raw).unwrap()), "{raw}");
+        }
     }
 }

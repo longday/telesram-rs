@@ -3,6 +3,7 @@ use std::sync::{
     Arc,
 };
 
+use parking_lot::Mutex;
 use tauri::{
     webview::{NewWindowResponse, PageLoadEvent},
     AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent,
@@ -26,6 +27,7 @@ pub struct WindowState {
     main_document: AtomicBool,
     native_surface_ready: AtomicBool,
     show_when_ready: AtomicBool,
+    pending_url: Mutex<Option<Url>>,
     title_has_digits: AtomicBool,
 }
 
@@ -41,6 +43,7 @@ impl WindowState {
             main_document: AtomicBool::new(false),
             native_surface_ready: AtomicBool::new(false),
             show_when_ready: AtomicBool::new(false),
+            pending_url: Mutex::new(None),
             title_has_digits: AtomicBool::new(false),
         })
     }
@@ -64,6 +67,23 @@ impl WindowState {
             self.show_when_ready.store(true, Ordering::Release);
             false
         }
+    }
+
+    fn request_navigation(&self, url: Url) -> Option<Url> {
+        if self.request_show() {
+            Some(url)
+        } else {
+            *self.pending_url.lock() = Some(url);
+            None
+        }
+    }
+
+    fn initial_url(&self) -> Result<Url, url::ParseError> {
+        self.pending_url
+            .lock()
+            .take()
+            .map(Ok)
+            .unwrap_or_else(|| Url::parse(TELEMOST_URL))
     }
 
     fn mark_native_surface_ready(&self) -> bool {
@@ -186,7 +206,8 @@ pub fn ensure_main_window(app: &AppHandle) -> Result<WebviewWindow, String> {
             if let Err(error) = tray::ensure(&configured_app) {
                 eprintln!("[tray] {error}");
             }
-            let url = match Url::parse(TELEMOST_URL) {
+            let state = configured_app.state::<WindowState>();
+            let url = match state.initial_url() {
                 Ok(url) => url,
                 Err(error) => {
                     eprintln!("[window] configured Telemost URL is invalid: {error}");
@@ -222,6 +243,30 @@ pub fn show_or_create(app: &AppHandle) -> Result<(), String> {
         show_and_focus(&window)?;
     }
     Ok(())
+}
+
+pub fn open_deep_link(app: &AppHandle, input: &str) -> Result<(), String> {
+    let url = crate::deep_link::decode(input).map_err(str::to_owned)?;
+    let link_app = app.clone();
+    // Serialize URL delivery with native configuration, including single-instance IPC callbacks.
+    app.run_on_main_thread(move || {
+        let result = (|| {
+            let window = ensure_main_window(&link_app)?;
+            let state = link_app.state::<WindowState>();
+            if let Some(url) = state.request_navigation(url) {
+                show_and_focus(&window)?;
+                window
+                    .navigate(url)
+                    .map_err(|_| "failed to navigate to deep link".to_owned())
+            } else {
+                Ok(())
+            }
+        })();
+        if let Err(error) = result {
+            eprintln!("[deep-link] {error}");
+        }
+    })
+    .map_err(|_| "failed to schedule deep link".to_owned())
 }
 
 pub fn hide(app: &AppHandle) -> Result<(), String> {
@@ -374,4 +419,35 @@ fn show_and_focus(window: &WebviewWindow) -> Result<(), String> {
         .set_focus()
         .map_err(|error| format!("failed to focus main window: {error}"))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pending_links_wait_for_configuration_and_are_consumed_once() {
+        let directory =
+            std::env::temp_dir().join(format!("telesram-window-{}", std::process::id()));
+        std::fs::create_dir(&directory).unwrap();
+        let settings = Arc::new(SettingsStore::load(directory.join("settings.json")).unwrap());
+        let state = WindowState::new(settings).unwrap();
+        let first = crate::deep_link::decode("telemost://https://telemost.yandex.ru/j/1").unwrap();
+        let latest =
+            crate::deep_link::decode("telemost://ychat/telemost.360.yandex.ru/#/threads").unwrap();
+        assert!(state.request_navigation(first).is_none());
+        assert!(state.request_navigation(latest.clone()).is_none());
+        assert!(!state.native_surface_ready.load(Ordering::Acquire));
+        assert_eq!(state.initial_url().unwrap(), latest);
+        assert!(state.mark_native_surface_ready());
+        let warm = crate::deep_link::decode("telemost://https://telemost.yandex.ru/j/2").unwrap();
+        assert_eq!(state.request_navigation(warm.clone()), Some(warm));
+        state.begin_window_configuration();
+        assert_eq!(
+            state.initial_url().unwrap().as_str(),
+            Url::parse(TELEMOST_URL).unwrap().as_str()
+        );
+        assert!(!state.mark_native_surface_ready());
+        std::fs::remove_dir(directory).unwrap();
+    }
 }
