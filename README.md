@@ -49,7 +49,7 @@ Verification: the release bundle was selected by macOS for `telemost://`; cold l
 - **control menu:** Managed Mode, Close to Tray, Show on Startup, Reload Page, Home (loads the configured Telemost URL), zoom, and Developer Tools. The Web Inspector can open docked inside the main window.
 - **Tray:** Show Window, Hide Window, Quit; a left click toggles the main window.
 - **Unread indicator:** a dot changes the tray icon's silhouette; template rendering follows the menu-bar theme. The existing title-digit signal is tracked across routes on both Telemost HTTPS origins, including `/threads` and `/chats/...`, with tooltip and Dock badge updates. Muted messages follow the website's title-counter behavior.
-- Managed Mode reloads the page, blocks a pinned WebKit-compatible subset of EasyPrivacy and uBlock Privacy network rules, and hides `div.yamb-global-bar`. It keeps exact Telemost/authentication HTTPS hosts inside the window, opens other links in the default browser, and redirects internal popups into the main window. Document navigations and essential Telemost/authentication subresources are exempt.
+- Managed Mode reloads the page, blocks the Yandex-only tracking/advertising profile, and hides `div.yamb-global-bar` on Telemost. It keeps exact Telemost/authentication HTTPS hosts inside the window, opens other links in the default browser, and redirects internal popups into the main window. Document navigations and essential Telemost/authentication/CDN subresources remain allowed.
 - `.runtime/settings.json` stores geometry and toggles. Cookies and website data belong to WebKit's persistent OS-managed data store, not that JSON file.
 - Developer Tools is enabled in the local release build through Tauri's `devtools` feature. WebKit uses private macOS inspector APIs; this ad-hoc-signed bundle is neither Developer ID signed nor notarized and is not suitable for public/App Store distribution. The inspector can expose authenticated page data.
 
@@ -61,11 +61,18 @@ An isolated native WebKit fixture kept the tray tooltip and Dock badge set acros
 
 ## Managed filter sources
 
-`assets/filter-sources/easyprivacy-202609241222.txt` is the EasyPrivacy 2026-09-24 12:22 UTC snapshot (upstream commit `71969edb834254e8172d3a2c7710805cbfabe3ce`). The two uBlock Privacy snapshots under `assets/filter-sources/` come from uAssets commit `038b6edb958a9684ccde4ccc5b7b28788d03c9a6`, including its `resource-abuse.txt` include. `python3 scripts/generate_managed_rules.py` regenerates the checked-in `assets/managed-rules.json`; `--check` compares it without writing.
+`assets/managed-rules.json` is a manually maintained profile: 33 network rules and one Telemost-scoped CSS rule. Dedicated tracking hosts include Metrica, Webvisor, AppMetrica and Yandex advertising; mixed-use hosts are blocked only on explicit tracking paths. Non-Yandex trackers are intentionally outside scope. Documents are excluded; Telemost, Passport, ID, cookie-helper and general CDN hosts are not blocked.
 
-The generated WebKit list contains 55,180 network blocks, 75 exceptions (including five protected Telemost/authentication hosts), and one CSS rule. The converter counts 2,780 skipped entries, chiefly domain-scoped filters, unsupported patterns, cosmetics, and negated third-party modifiers. Host-anchored third-party blocks outside Yandex use WebKit's `load-type`; WebKit tests origins while uBlock tests sites, so this is not equivalent to the uBlock engine. EasyPrivacy is [GPLv3-or-later or CC BY-SA 3.0-or-later](https://easylist.to/pages/licence.html); uAssets is [GPLv3](https://github.com/uBlockOrigin/uAssets/blob/master/LICENSE). Check redistribution obligations before publishing a bundle with these snapshots.
+Sources: selected Yandex rules from [EasyPrivacy at `71969edb`](https://github.com/easylist/easylist/tree/71969edb834254e8172d3a2c7710805cbfabe3ce) (2026-09-24 snapshot), `yandexmetrica.com` from [uAssets Privacy at `038b6edb`](https://github.com/uBlockOrigin/uAssets/blob/038b6edb958a9684ccde4ccc5b7b28788d03c9a6/filters/privacy.txt), and the application's existing explicit tracker rules. EasyPrivacy offers [GPLv3-or-later or CC BY-SA 3.0-or-later](https://easylist.to/pages/licence.html); uAssets uses [GPLv3](https://github.com/uBlockOrigin/uAssets/blob/master/LICENSE). Broad snapshots and their converter are no longer bundled.
 
-[✓ source headers in `assets/filter-sources/`; `python3 scripts/generate_managed_rules.py --check`]
+Edit the JSON directly; preserve hostname boundaries, exact-host path rules and document exclusion. No automatic list updates or uBlock scriptlets run. From the repository root on macOS, check native WebKit behavior:
+
+```sh
+clang -fobjc-arc -framework AppKit -framework WebKit scripts/check_managed_rules.m -o .runtime/check-managed-rules
+./.runtime/check-managed-rules
+```
+
+The checker compiles the exact JSON in an isolated store, intercepts HTTP/HTTPS locally and uses nonpersistent WebKit data. It exercises image/fetch blocking, service/CDN and lookalike allowances, document navigation, CSS scoping and off → on → off transitions. It deletes its temporary store on completion.
 
 ## Networking
 
@@ -81,7 +88,7 @@ Telesram enables WebKit's element Fullscreen API for pages in the main webview. 
 
 The user confirmed that Web Inspector opening docked inside the working window is acceptable. An earlier isolated build also demonstrated WebKit's separate-window Detach control. The app no longer overrides WebKit's inspector placement.
 
-The enlarged list compiled in an isolated native `WKContentRuleListStore`. A nonpersistent `WKWebView` fixture returned `display: block` for the bar with no rules and `display: none` with rules; an unrelated element stayed visible. Synthetic URL checks covered Yandex service exemptions, analytics hosts, lookalike hosts, and document navigations. No working-profile traffic was inspected.
+The Yandex-only profile passed the native checker: 26 image and 26 fetch cases in each of three modes, plus document exemptions and CSS scope checks. This proves selected rules, not complete analytics coverage or traffic savings. Fresh login, message delivery and live-call media were not exercised; no messages were sent or calls started.
 
 `build.sh` produced the Tauri release bundle under `.runtime/target/release/bundle/macos` and completed an incremental second build. Its strict code signature is ad-hoc with Hardened Runtime and camera/microphone entitlements; Tauri reported notarization skipped even with synthetic Apple signing variables. Isolated fixtures confirmed `start.sh` builds before launch and never launches after build failure, while `dev.sh` still launches its own signed bundle without replacing the release bundle. Neither launcher was run against the working WebKit profile; camera/microphone capture, screen sharing, and Web Inspector remain unverified under the new Hardened Runtime signature.
 
